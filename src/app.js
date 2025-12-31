@@ -32,6 +32,9 @@ const corsOptions = {
             'http://localhost:5173',
             'http://localhost:3000',
             'http://localhost:5174',
+            'https://labs-billing-frontend.vercel.app',
+            'https://labs-billing-frontend-git-main.vercel.app',
+            'https://labs-billing-frontend-git-*.vercel.app',
             process.env.FRONTEND_URL
         ].filter(Boolean); // Remove undefined values
         
@@ -42,9 +45,19 @@ const corsOptions = {
             }
         }
         
+        // In production (Vercel), allow vercel.app domains
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            if (origin.includes('.vercel.app') || origin.includes('vercel.app')) {
+                return callback(null, true);
+            }
+        }
+        
         if (allowedOrigins.includes(origin) || process.env.FRONTEND_URL === '*') {
             callback(null, true);
         } else {
+            // Log for debugging
+            console.log('CORS blocked origin:', origin);
+            console.log('Allowed origins:', allowedOrigins);
             callback(new Error('Not allowed by CORS'));
         }
     },
