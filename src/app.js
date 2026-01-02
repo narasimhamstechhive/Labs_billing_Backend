@@ -34,7 +34,6 @@ const corsOptions = {
             'http://localhost:5174',
             'https://labs-billing-frontend.vercel.app',
             'https://labs-billing-frontend-git-main.vercel.app',
-            'https://labs-billing-frontend-git-*.vercel.app',
             process.env.FRONTEND_URL
         ].filter(Boolean); // Remove undefined values
         
@@ -45,23 +44,35 @@ const corsOptions = {
             }
         }
         
-        // In production (Vercel), allow vercel.app domains
+        // In production (Vercel), allow all vercel.app domains
         if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            if (origin.includes('.vercel.app') || origin.includes('vercel.app')) {
+            if (origin.includes('.vercel.app')) {
                 return callback(null, true);
             }
         }
         
-        if (allowedOrigins.includes(origin) || process.env.FRONTEND_URL === '*') {
-            callback(null, true);
-        } else {
-            // Log for debugging
-            console.log('CORS blocked origin:', origin);
-            console.log('Allowed origins:', allowedOrigins);
-            callback(new Error('Not allowed by CORS'));
+        // Check exact match in allowed origins
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
         }
+        
+        // Allow wildcard if set
+        if (process.env.FRONTEND_URL === '*') {
+            return callback(null, true);
+        }
+        
+        // Log for debugging
+        console.log('CORS blocked origin:', origin);
+        console.log('Environment:', {
+            NODE_ENV: process.env.NODE_ENV,
+            VERCEL: process.env.VERCEL,
+            FRONTEND_URL: process.env.FRONTEND_URL
+        });
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
