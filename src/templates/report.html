@@ -68,37 +68,8 @@
 
     <hr style="border:none; border-top:1px dashed #000; margin:10px 0;">
 
-    <!-- DEPARTMENT -->
-    <div style="text-align:center; margin:15px 0;">
-      <h2 style="margin:0; font-size:18px;">{{DEPARTMENT_NAME}}</h2>
-      <p style="margin:5px 0; font-weight:bold;">
-        {{TEST_NAME}} REPORT
-      </p>
-    </div>
-
-    <hr style="border:none; border-top:1px dashed #000; margin:10px 0;">
-
-    <!-- RESULTS TABLE -->
-    <table style="width:100%; border-collapse:collapse; font-size:14px;">
-      <thead>
-        <tr>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Test Name</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Result</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Units</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Reference Range</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{TEST_RESULTS_ROWS}}
-      </tbody>
-    </table>
-
-    <hr style="border:none; border-top:1px dashed #000; margin:12px 0;">
-
-    <!-- INTERPRETATION CENTERED -->
-    <p style="text-align:center; font-size:14px;">
-      <b>Interpretation:</b> {{INTERPRETATION}}
-    </p>
+    <!-- DYNAMIC REPORT CONTENT -->
+    {{REPORT_CONTENT}}
 
   </div>
 
