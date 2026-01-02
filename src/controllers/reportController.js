@@ -4,6 +4,10 @@ import Test from '../models/Test.js';
 import LabSettings from '../models/LabSettings.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // @desc Get pending results (Samples with status Collected but Results not Approved)
 // @route GET /api/reports/pending
@@ -148,7 +152,7 @@ export const printReport = async (req, res) => {
         // Handle both local and Vercel serverless paths
         const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
         let templatePath;
-        
+
         if (isVercel) {
             // In Vercel, use process.cwd() relative path
             templatePath = path.join(process.cwd(), 'src', 'templates', 'report.html');
@@ -185,7 +189,7 @@ export const printReport = async (req, res) => {
         }
 
         // Format dates
-        const collectedOn = sample.collectionDate 
+        const collectedOn = sample.collectionDate
             ? new Date(sample.collectionDate).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
             : new Date(sample.createdAt).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         const reportedOn = new Date().toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -198,57 +202,94 @@ export const printReport = async (req, res) => {
             departments[deptName].push(r);
         });
 
-        // Generate report for first department (or combine if needed)
-        const firstDept = Object.keys(departments)[0];
-        const deptResults = departments[firstDept];
-        const mainTest = deptResults[0].test;
+        let reportContentHtml = '';
 
-        // Build test results rows
-        let testResultsRows = '';
-        deptResults.forEach(r => {
-            const hasSubtests = r.subtests && r.subtests.length > 0;
-            
-            if (r.resultValue || !hasSubtests) {
-                const resultValue = r.resultValue || '';
-                const abnormalClass = r.abnormal ? 'color:red; font-weight:bold;' : '';
-                const abnormalText = r.abnormal ? ` (Abnormal)` : '';
-                const arrow = r.abnormal ? ' ▲' : '';
-                
-                const unit = r.test.unit || '-';
-                const range = r.test.normalRanges?.general || 
-                    (r.test.normalRanges?.male ? `${r.test.normalRanges.male.min} – ${r.test.normalRanges.male.max}` : '-');
+        // Generate report sections for each department
+        Object.keys(departments).forEach(deptName => {
+            const deptResults = departments[deptName];
+            const mainTest = deptResults[0].test;
 
-                testResultsRows += `
-                    <tr>
-                        <td style="padding:8px;"><b>${r.test.testName}</b></td>
-                        <td style="padding:8px; ${abnormalClass}">${resultValue}${abnormalText}${arrow}</td>
-                        <td style="padding:8px;">${unit}</td>
-                        <td style="padding:8px;">${range}</td>
-                    </tr>
-                `;
-            }
+            // Build test results rows
+            let testResultsRows = '';
+            deptResults.forEach(r => {
+                const hasSubtests = r.subtests && r.subtests.length > 0;
 
-            // Add subtests
-            if (hasSubtests && r.subtests) {
-                r.subtests.forEach(sub => {
-                    const abnormalClass = sub.abnormal ? 'color:red; font-weight:bold;' : '';
-                    const abnormalText = sub.abnormal ? ` (Abnormal)` : '';
-                    const arrow = sub.abnormal ? ' ▲' : '';
-                    
+                if (r.resultValue || !hasSubtests) {
+                    const resultValue = r.resultValue || '';
+                    const abnormalClass = r.abnormal ? 'color:red; font-weight:bold;' : '';
+                    const abnormalText = r.abnormal ? ` (Abnormal)` : '';
+                    const arrow = r.abnormal ? ' ▲' : '';
+
+                    const unit = r.test.unit || '-';
+                    const range = r.test.normalRanges?.general ||
+                        (r.test.normalRanges?.male ? `${r.test.normalRanges.male.min} – ${r.test.normalRanges.male.max}` : '-');
+
                     testResultsRows += `
                         <tr>
-                            <td style="padding:8px;">${sub.testName}</td>
-                            <td style="padding:8px; ${abnormalClass}">${sub.resultValue}${abnormalText}${arrow}</td>
-                            <td style="padding:8px;">${sub.unit || '-'}</td>
-                            <td style="padding:8px;">${sub.normalRange || '-'}</td>
+                            <td style="padding:8px;"><b>${r.test.testName}</b></td>
+                            <td style="padding:8px; ${abnormalClass}">${resultValue}${abnormalText}${arrow}</td>
+                            <td style="padding:8px;">${unit}</td>
+                            <td style="padding:8px;">${range}</td>
                         </tr>
                     `;
-                });
-            }
-        });
+                }
 
-        // Get interpretation from remarks
-        const interpretation = deptResults.find(r => r.remarks)?.remarks || 'Values marked abnormal are outside the reference range.';
+                // Add subtests
+                if (hasSubtests && r.subtests) {
+                    r.subtests.forEach(sub => {
+                        const abnormalClass = sub.abnormal ? 'color:red; font-weight:bold;' : '';
+                        const abnormalText = sub.abnormal ? ` (Abnormal)` : '';
+                        const arrow = sub.abnormal ? ' ▲' : '';
+
+                        testResultsRows += `
+                            <tr>
+                                <td style="padding:8px;">${sub.testName}</td>
+                                <td style="padding:8px; ${abnormalClass}">${sub.resultValue}${abnormalText}${arrow}</td>
+                                <td style="padding:8px;">${sub.unit || '-'}</td>
+                                <td style="padding:8px;">${sub.normalRange || '-'}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            // Get interpretation from remarks
+            const interpretation = deptResults.find(r => r.remarks)?.remarks || 'Values marked abnormal are outside the reference range.';
+
+            // Generate HTML for this department section
+            reportContentHtml += `
+                <div style="text-align:center; margin:15px 0;">
+                    <h2 style="margin:0; font-size:18px;">${deptName}</h2>
+                    <p style="margin:5px 0; font-weight:bold;">
+                        ${mainTest.testName?.toUpperCase()} REPORT
+                    </p>
+                </div>
+
+                <hr style="border:none; border-top:1px dashed #000; margin:10px 0;">
+
+                <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Test Name</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Result</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Units</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #000;">Reference Range</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${testResultsRows}
+                    </tbody>
+                </table>
+
+                <hr style="border:none; border-top:1px dashed #000; margin:12px 0;">
+
+                <p style="text-align:center; font-size:14px;">
+                    <b>Interpretation:</b> ${interpretation}
+                </p>
+                
+                <div style="page-break-after: auto; height: 2px;"></div>
+            `;
+        });
 
         // Replace placeholders
         htmlTemplate = htmlTemplate.replace('{{LOGO_HTML}}', logoHtml);
@@ -264,10 +305,7 @@ export const printReport = async (req, res) => {
         htmlTemplate = htmlTemplate.replace('{{REG_NO}}', sample.patient.patientId || 'N/A');
         htmlTemplate = htmlTemplate.replace('{{COLLECTED_ON}}', collectedOn);
         htmlTemplate = htmlTemplate.replace('{{REPORTED_ON}}', reportedOn);
-        htmlTemplate = htmlTemplate.replace('{{DEPARTMENT_NAME}}', firstDept || 'GENERAL');
-        htmlTemplate = htmlTemplate.replace('{{TEST_NAME}}', mainTest.testName?.toUpperCase() || 'TEST REPORT');
-        htmlTemplate = htmlTemplate.replace('{{TEST_RESULTS_ROWS}}', testResultsRows);
-        htmlTemplate = htmlTemplate.replace('{{INTERPRETATION}}', interpretation);
+        htmlTemplate = htmlTemplate.replace('{{REPORT_CONTENT}}', reportContentHtml);
 
         // Set headers
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
